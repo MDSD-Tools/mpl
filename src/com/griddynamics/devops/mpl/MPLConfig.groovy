@@ -30,7 +30,7 @@ import com.cloudbees.groovy.cps.NonCPS
  *
  * @author Sergei Parshev <sparshev@griddynamics.com>
  */
-class MPLConfig implements Serializable {
+public class MPLConfig implements Map, Serializable {
   /** Configuration Map or List storage */
   private Map config = [:]
 
@@ -46,8 +46,8 @@ class MPLConfig implements Serializable {
    * @return  MPLConfig object
    */
   @NonCPS
-  static public MPLConfig create(config) {
-    new MPLConfig(config)
+  static public MPLConfig create(cfg) {
+    new MPLConfig(cfg)
   }
 
   /**
@@ -57,7 +57,7 @@ class MPLConfig implements Serializable {
    */
   @NonCPS
   public MPLConfig clone() {
-    new MPLConfig(config)
+    new MPLConfig(this.@config)
   }
 
   /**
@@ -65,12 +65,33 @@ class MPLConfig implements Serializable {
    *
    * Private to disallow breaking the pipeline
    */
-  private MPLConfig(config = [:]) {
-    this.config = Helper.cloneValue(config)
+  private MPLConfig(cfg = [:]) {
+    this.@config = Helper.cloneValue(cfg)
   }
 
   /**
+   * It's forbidden to use the MPLConfig as a regular Map.
+   * CFG is just a config place, you can't iterate over it.
+   * The module should know the key it's trying to use, not to process everything.
+   */
+  public Object remove(Object key) {}
+  public Collection values() {}
+  public Set keySet() {}
+  public void clear() {}
+  public boolean containsKey(Object key) {}
+  public boolean containsValue(Object val) {}
+  public void putAll(Map map) {}
+
+  public int size() { this.@config.size() }
+  public boolean isEmpty() { this.@config.isEmpty() }
+  public Set entrySet() { Helper.configEntrySet(this.@config) }
+  
+  /**
    * Get a value copy of the provided config key path
+   *
+   * Warning: it's not a good idea to use the method directly as
+   *          `CFG.get('key')` - please use `CFG.'key'` instead.
+   *          In the future versions direct access could be removed
    *
    * Allowed path tokens:
    *  string - almost any charset not containing dot, key of the Map
@@ -79,10 +100,10 @@ class MPLConfig implements Serializable {
    * @param key_path - path to the desired config value separated by dot
    * @return value of the key path or null if not found
    */
-  public getProperty(String key_path) {
+  public Object get(Object key_path) {
     def key_list = key_path.tokenize(".")
 
-    def value = config
+    def value = this.@config
     for( def key in key_list ) {
       if( value in Map )
         value = value[key]
@@ -100,6 +121,10 @@ class MPLConfig implements Serializable {
   /**
    * Set value for the provided config key path
    *
+   * Warning: it's not a good idea to use the method directly as
+   *          `CFG.put('key', 'value')` - please use `CFG.'key' = 'value'` instead
+   *          In the future versions direct access could be removed
+   *
    * Allowed path tokens:
    *  string - almost any charset not containing dot, key of the Map
    *  number - index of a List, if target is not Map
@@ -112,11 +137,11 @@ class MPLConfig implements Serializable {
    *
    * @param key_path - path to the desired config value separated by dot
    */
-  void setProperty(String key_path, val) {
+  public Object put(Object key_path, Object val) {
     def key_list = key_path.tokenize(".")
 
     def key, parent
-    def value = config
+    def value = this.@config
     for( def i = 0; i < key_list.size(); i++ ) {
       key = key_list[i]
       parent = value
@@ -141,11 +166,11 @@ class MPLConfig implements Serializable {
   }
 
   /**
-   * Serializer to support unit testing via strings
+   * Easy way to debug the config content
    *
    * @return  String "MPLConfig(<config dump>)"
    */
   public String toString() {
-    return "MPLConfig(${this.config.dump()})"
+    return "MPLConfig(${this.@config.dump()})"
   }
 }
